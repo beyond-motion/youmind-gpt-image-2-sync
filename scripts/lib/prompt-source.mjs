@@ -1,6 +1,6 @@
 import path from "path";
 import { CACHE_DIR, DATA_DIR, readJsonIfExists, writeJsonSync } from "./config.mjs";
-import { fetchAllPrompts } from "./youmind-client.mjs";
+import { fetchAllPrompts, probePromptsFeed } from "./youmind-client.mjs";
 
 function getCachePath(locale) {
   return path.join(CACHE_DIR, `prompts.${locale}.json`);
@@ -59,6 +59,30 @@ function isFreshEnough(cache, maxCacheAgeHours) {
   return cache.ageMs <= maxCacheAgeHours * 60 * 60 * 1000;
 }
 
+function toProbePrompt(prompt) {
+  return {
+    id: String(prompt?.id ?? ""),
+    title: String(prompt?.title ?? ""),
+    sourcePublishedAt: String(prompt?.sourcePublishedAt ?? ""),
+    detailUrl: String(prompt?.detailUrl ?? ""),
+    sourceLink: String(prompt?.sourceLink ?? "")
+  };
+}
+
+function doesProbeMatchCache(cachePayload, probe) {
+  if (
+    !cachePayload ||
+    Number(cachePayload.total || 0) !== Number(probe.total || 0) ||
+    !Array.isArray(cachePayload.prompts) ||
+    cachePayload.prompts.length < Number(probe.total || 0)
+  ) {
+    return false;
+  }
+
+  const cachedPrompts = cachePayload.prompts.slice(0, probe.prompts.length).map(toProbePrompt);
+  return JSON.stringify(cachedPrompts) === JSON.stringify(probe.prompts);
+}
+
 export async function loadOrFetchPromptPayload({
   locale,
   model,
@@ -66,7 +90,8 @@ export async function loadOrFetchPromptPayload({
   forceRefresh = false,
   preferCache = true,
   maxCacheAgeHours,
-  allowStaleFallbackOnError = false
+  allowStaleFallbackOnError = false,
+  probeBeforeFetch = false
 }) {
   const existingCache = findBestCache({ locale, model });
   const cachePath = getCachePath(locale);
@@ -81,6 +106,19 @@ export async function loadOrFetchPromptPayload({
   }
 
   try {
+    if (!forceRefresh && probeBeforeFetch && existingCache) {
+      const probe = await probePromptsFeed({ locale, model });
+
+      if (doesProbeMatchCache(existingCache.payload, probe)) {
+        return {
+          source: "probe-cache",
+          cachePath: existingCache.cachePath,
+          payload: existingCache.payload,
+          cacheAgeMs: existingCache.ageMs
+        };
+      }
+    }
+
     const fetchedAt = new Date().toISOString();
     const result = await fetchAllPrompts({
       locale,

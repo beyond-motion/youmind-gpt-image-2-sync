@@ -72,6 +72,8 @@ npm run sync:analysis:lark
 
 已配置 `.github/workflows/sync-and-deploy.yml`。
 
+当前 workflow 会先用轻量探测检查 YouMind 首页签名；只有远端总量或前几条内容发生变化时，才会触发全量分页抓取。GitHub 托管 Runner 还会持久化抓取缓存，避免每次从零开始。
+
 GitHub 托管 Runner 模式需要配置仓库 Secrets：
 
 - `FEISHU_APP_ID`

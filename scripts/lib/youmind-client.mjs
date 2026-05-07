@@ -86,6 +86,38 @@ export async function fetchPromptsPage({
   }
 }
 
+function toProbePrompt(prompt) {
+  return {
+    id: String(prompt?.id ?? ""),
+    title: String(prompt?.title ?? ""),
+    sourcePublishedAt: String(prompt?.sourcePublishedAt ?? ""),
+    detailUrl: String(prompt?.detailUrl ?? ""),
+    sourceLink: String(prompt?.sourceLink ?? "")
+  };
+}
+
+export async function probePromptsFeed({
+  locale = DEFAULT_LOCALE,
+  model = DEFAULT_MODEL,
+  query = "",
+  limit = readNumberEnv("YOUMIND_PROBE_COUNT", 12)
+} = {}) {
+  const payload = await fetchPromptsPage({
+    page: 1,
+    limit: Math.max(1, Math.min(limit, 100)),
+    locale,
+    model,
+    query
+  });
+
+  return {
+    total: Number(payload.total || 0),
+    totalPages: Number(payload.totalPages || 0),
+    hasMore: Boolean(payload.hasMore),
+    prompts: Array.isArray(payload.prompts) ? payload.prompts.map(toProbePrompt) : []
+  };
+}
+
 export async function fetchAllPrompts({
   locale = DEFAULT_LOCALE,
   model = DEFAULT_MODEL,

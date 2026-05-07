@@ -3,7 +3,7 @@ name: Sync And Deploy
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 18 * * *"
   push:
     branches:
       - main
@@ -42,9 +42,10 @@ jobs:
       - name: Configure persistent prompt cache
         run: |
           echo "YOUMIND_CACHE_DIR=$HOME/.cache/youmind-gpt-image-2-sync" >> "$GITHUB_ENV"
-          echo "YOUMIND_MAX_CACHE_AGE_HOURS=2" >> "$GITHUB_ENV"
           echo "YOUMIND_ALLOW_STALE_CACHE_ON_ERROR=1" >> "$GITHUB_ENV"
-          echo "YOUMIND_MAX_RETRIES=2" >> "$GITHUB_ENV"
+          echo "YOUMIND_PROBE_BEFORE_FETCH=1" >> "$GITHUB_ENV"
+          echo "YOUMIND_PROBE_COUNT=12" >> "$GITHUB_ENV"
+          echo "YOUMIND_MAX_RETRIES=3" >> "$GITHUB_ENV"
           echo "YOUMIND_PAGE_DELAY_MS=2000" >> "$GITHUB_ENV"
           mkdir -p "$HOME/.cache/youmind-gpt-image-2-sync"
 
@@ -52,6 +53,10 @@ jobs:
         env:
           YOUMIND_MODEL: gpt-image-2
           YOUMIND_LOCALE: zh-CN
+          YOUMIND_ALLOW_STALE_CACHE_ON_ERROR: "1"
+          YOUMIND_PROBE_BEFORE_FETCH: "1"
+          YOUMIND_PROBE_COUNT: "12"
+          YOUMIND_PAGE_DELAY_MS: "2000"
         run: npm run fetch
 
       - name: Sync to Feishu with local lark-cli
@@ -68,7 +73,7 @@ jobs:
           YOUMIND_LOCALE: zh-CN
           FEISHU_BASE_TOKEN: ${{ secrets.FEISHU_BASE_TOKEN }}
           FEISHU_TABLE_ID: ${{ secrets.FEISHU_TABLE_ID }}
-          SITE_SOURCE_MODE: feishu-first
+          SITE_SOURCE_MODE: public-only
         run: npm run build:site
 
       - name: Setup Pages
@@ -89,6 +94,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore prompt cache
+        id: restore-prompt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/youmind-gpt-image-2-sync
+          key: prompt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            prompt-cache-${{ runner.os }}-${{ github.ref_name }}-
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -98,7 +112,20 @@ jobs:
         env:
           YOUMIND_MODEL: gpt-image-2
           YOUMIND_LOCALE: zh-CN
+          YOUMIND_CACHE_DIR: .cache/youmind-gpt-image-2-sync
+          YOUMIND_ALLOW_STALE_CACHE_ON_ERROR: "1"
+          YOUMIND_PROBE_BEFORE_FETCH: "1"
+          YOUMIND_PROBE_COUNT: "12"
+          YOUMIND_PAGE_DELAY_MS: "2000"
+          YOUMIND_MAX_RETRIES: "3"
         run: npm run fetch
+
+      - name: Save prompt cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/youmind-gpt-image-2-sync
+          key: prompt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Sync to Feishu via Open API
         env:
@@ -125,7 +152,7 @@ jobs:
           FEISHU_TABLE_ID: ${{ secrets.FEISHU_TABLE_ID }}
         run: |
           if [[ -n "${FEISHU_APP_ID}" && -n "${FEISHU_APP_SECRET}" && -n "${FEISHU_BASE_TOKEN}" && -n "${FEISHU_TABLE_ID}" ]]; then
-            SITE_SOURCE_MODE=feishu-first npm run build:site
+            SITE_SOURCE_MODE=public-only npm run build:site
           else
             echo "Using committed site/data/prompts.json because Feishu Open API secrets are missing."
           fi

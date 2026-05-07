@@ -12,10 +12,14 @@ async function main() {
   const maxCacheAgeHours = readNumberEnv("YOUMIND_MAX_CACHE_AGE_HOURS");
   const preferCache = maxCacheAgeHours !== undefined;
   const allowStaleFallbackOnError = process.env.YOUMIND_ALLOW_STALE_CACHE_ON_ERROR === "1";
+  const probeBeforeFetch = process.env.YOUMIND_PROBE_BEFORE_FETCH === "1";
 
   console.log(`Fetching prompts for model=${model} locale=${locale} ...`);
   if (preferCache) {
     console.log(`Cache preference enabled. maxAge=${maxCacheAgeHours}h`);
+  }
+  if (probeBeforeFetch) {
+    console.log("Remote probe enabled. Full fetch runs only when the feed signature changes.");
   }
 
   const { payload, source, fetchError } = await loadOrFetchPromptPayload({
@@ -25,6 +29,7 @@ async function main() {
     preferCache,
     maxCacheAgeHours,
     allowStaleFallbackOnError,
+    probeBeforeFetch,
     onProgress({ page, totalPages, fetched, total }) {
       console.log(`  page ${page}/${totalPages} fetched=${fetched}/${total}`);
     }
@@ -32,6 +37,8 @@ async function main() {
 
   if (source === "cache") {
     console.log(`Using cached prompts snapshot (${payload.prompts.length} rows)`);
+  } else if (source === "probe-cache") {
+    console.log(`Remote probe matched cached prompts snapshot (${payload.prompts.length} rows)`);
   } else if (source === "stale-cache") {
     console.warn(
       `Remote fetch failed, falling back to cached prompts snapshot (${payload.prompts.length} rows): ${fetchError.message}`
