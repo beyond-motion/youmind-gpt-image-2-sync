@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE, DEFAULT_MODEL } from "./config.mjs";
 
-const API_URL = "https://youmind.com/youhome-api/prompts";
+const API_URL = "https://youmind.com/youmarketing-api/prompts";
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 
