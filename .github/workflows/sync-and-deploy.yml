@@ -146,16 +146,8 @@ jobs:
         env:
           YOUMIND_MODEL: gpt-image-2
           YOUMIND_LOCALE: zh-CN
-          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
-          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
-          FEISHU_BASE_TOKEN: ${{ secrets.FEISHU_BASE_TOKEN }}
-          FEISHU_TABLE_ID: ${{ secrets.FEISHU_TABLE_ID }}
-        run: |
-          if [[ -n "${FEISHU_APP_ID}" && -n "${FEISHU_APP_SECRET}" && -n "${FEISHU_BASE_TOKEN}" && -n "${FEISHU_TABLE_ID}" ]]; then
-            SITE_SOURCE_MODE=public-only npm run build:site
-          else
-            echo "Using committed site/data/prompts.json because Feishu Open API secrets are missing."
-          fi
+          SITE_SOURCE_MODE: public-only
+        run: npm run build:site
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
